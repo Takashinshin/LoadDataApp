@@ -8,11 +8,25 @@
     android:gravity="center"
     tools:context=".LoadingActivity">
 
-    <Button
-        android:id="@+id/startLoadBtn"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/start_load_btn"/>
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/startLoadBtn"
+            android:layout_width="160dp"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="10dp"
+            android:text="@string/start_load_btn"/>
+
+        <Button
+            android:id="@+id/cancelBtn"
+            android:layout_width="160dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:text="@string/cancel_btn"/>
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"

@@ -18,12 +18,19 @@ public class DataLoader {
     private Callback mCallback;
     //Callback通知先のLooper
     private Looper mLooper;
+    //Load処理中断Flag
+    private static int mInterruptionFlag;
+    private static final int NOT_INTERRUPTING = 0;
+    private static final int INTERRUPTING = 1;
 
     /**
      * コンストラクター
      */
     public DataLoader() {
         //必要な時にThreadを立ち上げるようにする為、ここではThread生成せず、load()で生成する
+
+        //フラグ初期化
+        mInterruptionFlag = NOT_INTERRUPTING;
     }
 
     /**
@@ -47,11 +54,24 @@ public class DataLoader {
         mDataLoadHandler.sendMessage(message);
     }
 
+    public void cancel() {
+        if (mDataLoadHandler != null) {
+            //中断フラグ変更
+            setInterruptionFlag(INTERRUPTING);
+
+            //cancelのMessageを投げる
+            Message message = Message.obtain();
+            message.what = DataLoadHandler.MSG_CANCEL;
+            mDataLoadHandler.sendMessage(message);
+        }
+    }
+
     /**
      * 別スレッドとHandler経由でやりとりを行う為のHandler
      */
     class DataLoadHandler extends Handler {
         private static final int MSG_LOAD = 1;
+        private static final int MSG_CANCEL = 2;
 
         public DataLoadHandler(Looper looper) {
             super(looper);
@@ -66,14 +86,22 @@ public class DataLoader {
                     Log.i(TAG, "start loadInternal() ");
                     loadInternal();
                     break;
+                case MSG_CANCEL:
+                    //読込み停止
+                    Log.i(TAG, "cancel load.");
+                    notifyCancel();
                 default:
                     break;
             }
         }
     }
 
-    private void loadInternal() {
+    private boolean loadInternal() {
         for (int rate = 0; rate < 100; rate++) {
+            if (mInterruptionFlag == INTERRUPTING) {
+                setInterruptionFlag(NOT_INTERRUPTING);
+                return true;
+            }
             try {
                 //100ms毎に進捗率を通知
                 Thread.sleep(100);
@@ -82,9 +110,9 @@ public class DataLoader {
                 throw new RuntimeException(e);
             }
         }
-
         //100%で読込み完了を通知
         notifyCompleted();
+        return false;
     }
 
     private void notifyProgress(final int progress) {
@@ -93,6 +121,7 @@ public class DataLoader {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
+                    Log.i(TAG, "DataLoading :" + progress + "%");
                     mCallback.onProgress(progress);
                 }
             });
@@ -105,10 +134,33 @@ public class DataLoader {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
+                    Log.i(TAG, "onCompleted");
                     mCallback.onCompleted();
                 }
             });
         }
+    }
+
+    private void notifyCancel() {
+        synchronized (mCallback) {
+            final Handler handler = new Handler(mLooper);
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Log.i(TAG, "notifyCancel");
+                    int cancelRate = 0;
+                    mCallback.onCancel(cancelRate);
+                }
+            });
+        }
+    }
+
+    /**
+     * 別スレッドから値を変更する為synchronizedにする
+     * @param state
+     */
+    public synchronized void setInterruptionFlag(int state) {
+        mInterruptionFlag = state;
     }
 
     /**
@@ -125,5 +177,10 @@ public class DataLoader {
          */
         void onCompleted();
 
+        /**
+         * 読込みキャンセルを通知
+         * @param cancelRate 中断の割合。中断でも対応できるように引数で割合を返す
+         */
+        void onCancel(final int cancelRate);
     }
 }

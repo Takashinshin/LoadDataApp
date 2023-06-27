@@ -13,4 +13,10 @@
         android:layout_height="wrap_content"
         android:text="@string/data_load_completed"/>
 
+    <Button
+        android:id="@+id/BackBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/back"/>
+
 </LinearLayout>
